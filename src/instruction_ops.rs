@@ -1,10 +1,10 @@
 use serde_json::Value;
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::{HashMap, hash_map::Entry, BTreeMap};
 use crate::transaction_ops::{AccountProfile, DeserializationError};
 
 pub fn process_instruction<'a>(
     tx_accs: &[&'a str],
-    tx_hm: &mut HashMap<String, AccountProfile>,
+    tx_hm: &mut BTreeMap<String, AccountProfile>,
     ix: &'a Value,
 ) -> Result<(), DeserializationError> {
 

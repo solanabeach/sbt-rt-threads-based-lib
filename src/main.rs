@@ -6,6 +6,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde_json::Value;
 
@@ -22,7 +23,7 @@ fn main() -> io::Result<()> {
     println!("My process id is :{}", std::process::id());
 
 
-    let global_map:HashMap<String, AccountProfile> = HashMap::new();
+    let global_map:BTreeMap<String, AccountProfile> = BTreeMap::new();
 
     let datapath = "/home/rxz/dev/sb-actix-lib/sample-data";
     println!("Will read from {}", datapath);
@@ -45,7 +46,7 @@ fn main() -> io::Result<()> {
             let mut block  = String::new();
             let _ = reader.read_to_string(&mut block);
             let mut block_parsed: Value = serde_json::from_str(&block).unwrap();
-            let mut block_hm            = HashMap::new();
+            let mut block_hm            = BTreeMap::new();
             for tx in block_parsed["transactions"].as_array_mut().unwrap().iter() {
                 let _ = process_tx(&tx["transaction"], &mut block_hm);
             }

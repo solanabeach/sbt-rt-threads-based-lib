@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use solana_sdk::pubkey::Pubkey;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use crate::instruction_ops::process_instruction;
 
 pub fn str_is_pda(acc: &&str) -> Result<bool, bs58::decode::Error> {
@@ -61,7 +61,7 @@ pub struct DeserializationError {
 /// * `Result<HashMap<String, AccountProfile>, DeserializationError>` - the hashmap for this particular tx to be merged with a per-block one
 pub fn process_tx<'tx>(
     tx: &'tx Value,
-    global_hm: &mut HashMap<String, AccountProfile>,
+    global_hm: &mut BTreeMap<String, AccountProfile>,
 ) -> Result<(), DeserializationError> {
 
     let account_list: Vec<&str> = tx["message"]["accountKeys"].as_array()

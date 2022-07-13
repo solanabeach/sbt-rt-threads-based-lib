@@ -57,13 +57,29 @@ fn main() -> io::Result<()> {
         handles.push(_handle);
     }
 
-    while handles.len() > 0 {
-        let cur_thread = handles.pop().unwrap(); // moves it into cur_thread
-        let returned_block = cur_thread.join().unwrap();
+    // while handles.len() > 0 {
+    //     let cur_thread = handles.pop().unwrap(); // moves it into cur_thread
+    //     let returned_block = cur_thread.join().unwrap();
 
 
 
-    }
+    // }
+
+    let mut hm1 =HashMap::new();
+    hm1.insert(2, 3);
+    hm1.insert(4, 20);
+    hm1.insert(5, 100);
+    let mut hm2 =HashMap::new();
+    hm2.insert(10, 200);
+    hm2.insert(13, 233);
+    hm2.insert(5 , 1  );
+
+    println!("hm1 {:?}", hm1);
+    println!("hm2 {:?}", hm2);
+
+    let hm3=merge_hmaps(hm1, &mut hm2);
+    println!("hm1 + hm2 {:?}", hm3);
+
     println!("Done");
     Ok(())
 }
@@ -90,18 +106,19 @@ fn merge_account_profiles (mut a: AccountProfile, mut b: AccountProfile)->Accoun
         is_program : a.is_program || b.is_program ,
 
         data_first_byte  : (||{ b.data_first_byte.iter()
-            .map(|(k2,v2)|{
+            .for_each(|(k2,v2)|{
                  a.data_first_byte.entry(*k2).and_modify(|v1|{ *v1 += *v2}).or_insert(*v2);}); 
             a.data_first_byte})(),
 
         num_input_accs_ix:  (||{ a.num_input_accs_ix.append(&mut b.num_input_accs_ix); a.num_input_accs_ix })(),        
-
-        
     }
 }
 
-pub fn merge_hmaps (mut m1 : HashMap<u8,u64>,m2: &mut HashMap<u8,u64>)->HashMap<u8,u64>{
-    m2.iter().map(|(k2,v2)|{m1.entry(*k2).and_modify(|v1|{ *v1 += *v2}).or_insert(*v2);});
+pub fn merge_hmaps (mut m1 : HashMap<u8,u64>,mut m2: &mut HashMap<u8,u64>)->HashMap<u8,u64>{
+    m2.iter().for_each(|(k2,val2)|{
+        println!("Iterating over ({},{})", k2, val2);
+        m1.entry(*k2).and_modify(|v1|{ *v1 += *val2}).or_insert(*val2);
+    });
     m1
 }
 

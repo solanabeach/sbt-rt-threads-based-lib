@@ -100,10 +100,10 @@ fn merge_account_profiles(mut a: AccountProfile, mut b: AccountProfile) -> Resul
     // }
 
     Ok(AccountProfile {
-        num_entered_as_signed_rw  : a.num_entered_as_signed_rw + b.num_entered_as_signed_rw,
-        num_entered_as_signed_r   : a.num_entered_as_signed_r + b.num_entered_as_signed_r,
-        num_entered_as_unsigned_rw: a.num_entered_as_unsigned_rw + b.num_entered_as_unsigned_rw,
-        num_entered_as_unsigned_r : a.num_entered_as_signed_r + b.num_entered_as_unsigned_r,
+        num_entered_as_signed_rw   : a.num_entered_as_signed_rw   + b.num_entered_as_signed_rw   ,
+        num_entered_as_signed_r    : a.num_entered_as_signed_r    + b.num_entered_as_signed_r    ,
+        num_entered_as_unsigned_r  : a.num_entered_as_unsigned_r  + b.num_entered_as_unsigned_r  ,
+        num_entered_as_unsigned_rw : a.num_entered_as_unsigned_rw + b.num_entered_as_unsigned_rw ,
         tx_top_mentions           : a.tx_top_mentions + b.tx_top_mentions,
         ix_mentions               : a.ix_mentions + b.ix_mentions,
         num_call_to               : a.num_call_to + b.num_call_to,
@@ -166,7 +166,7 @@ mod tests {
     use itertools::{Itertools, EitherOrBoth};
     use solana_sdk::blake3::Hash;
 
-    use crate::{transaction_ops::{AccountProfile, DataFreq}, merge_account_profiles};
+    use crate::{transaction_ops::{AccountProfile, DataFreq}, merge_account_profiles, merge_btree_maps};
 
     #[test]
     fn block_merging() {
@@ -237,6 +237,7 @@ mod tests {
         method_invocations_3.insert(14u8, 200);
         method_invocations_3.insert(21u8, 300);
         method_invocations_3.insert(28u8, 400);
+
         let acc3 = AccountProfile{
             arg_data: DataFreq{
                 num_occurences: 2,
@@ -264,9 +265,66 @@ mod tests {
         let mut block3    :BTreeMap<String, AccountProfile> = BTreeMap::new();
 
 
-        block1.insert(addr1, acc1);
-        block2.insert(addr2, acc2);
-        block3.insert(addr3, acc3);
+        block1.insert(addr1.clone(), acc1);
+        block2.insert(addr2.clone(), acc2);
+        block3.insert(addr3.clone(), acc3);
+
+        global_map = merge_btree_maps(global_map, block1);
+        global_map = merge_btree_maps(global_map, block2);
+        global_map = merge_btree_maps(global_map, block3);
+
+
+        // The program should go unchagned
+        assert_eq!(global_map.get(&addr3).unwrap().arg_data         .num_occurences, 2 );
+        assert_eq!(global_map.get(&addr3).unwrap().arg_data         .total_length  , 2 );
+        assert_eq!(global_map.get(&addr3).unwrap().data_first_byte  .len()         , 4 );
+        assert_eq!(global_map.get(&addr3).unwrap().num_input_accs_ix.len()         , 2 );
+        assert_eq!(global_map.get(&addr3).unwrap().tx_top_mentions                 , 11);
+
+        // The two account profiles with same key should get merged
+        let acc1 = global_map.get(&addr1).unwrap();
+        let acc2 = global_map.get(&addr2).unwrap();
+
+        // Inner data merged likewise
+        assert_eq!(acc1.data_first_byte.get(&0u8).unwrap(), acc2.data_first_byte.get(&0u8).unwrap());
+        assert_eq!(acc1.data_first_byte.get(&0u8).unwrap(), &40);
+
+        assert_eq!(acc2.data_first_byte.get(&213u8).unwrap(), &1);
+        assert_eq!(acc2.data_first_byte.get(&49u8).unwrap(), &111);
+
+        let mut merged_numixs= vec![49, 50, 2 ,3 ,5,];
+        merged_numixs.append( &mut vec![90,90] );
+
+        // Ensure summations are correct
+        assert_eq!(acc2.is_pda                    , acc1.is_pda                    );
+        assert_eq!(acc2.is_pda                    , false                    );
+
+        assert_eq!(acc2.is_program                , acc1.is_program                );
+        assert_eq!(acc2.is_program                , false                );
+
+        assert_eq!(acc2.ix_mentions               , acc1.ix_mentions               );
+        assert_eq!(acc2.ix_mentions               ,  25             );
+
+        assert_eq!(acc2.num_call_to               , acc1.num_call_to               );
+        assert_eq!(acc2.num_call_to               , 35               );
+
+        assert_eq!(acc2.num_entered_as_signed_r   , acc1.num_entered_as_signed_r   );
+        assert_eq!(acc2.num_entered_as_signed_r   , 45   );
+
+        assert_eq!(acc2.num_entered_as_signed_rw  , acc1.num_entered_as_signed_rw  );
+        assert_eq!(acc2.num_entered_as_signed_rw  , 55  );
+
+        assert_eq!(acc2.num_entered_as_unsigned_rw, acc1.num_entered_as_unsigned_rw);
+        assert_eq!(acc2.num_entered_as_unsigned_rw, 65);
+
+        assert_eq!(acc2.num_entered_as_unsigned_r , acc1.num_entered_as_unsigned_r );
+        assert_eq!(acc2.num_entered_as_unsigned_r , 55);
+
+
+        assert_eq!(acc2.num_zero_len_data         , acc1.num_zero_len_data         );
+        assert_eq!(acc2.num_zero_len_data         , 72);
+
+;
 
 
 

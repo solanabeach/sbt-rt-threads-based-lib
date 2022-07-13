@@ -18,19 +18,11 @@ pub mod instruction_ops;
 pub mod transaction_ops;
 
 
-pub fn process_block  (serde_block: &Value){
-
-}
 
 fn main() -> io::Result<()> {
-    println!("My process id is :{}", std::process::id());
-
-
-    let global_map:BTreeMap<String, AccountProfile> = BTreeMap::new();
-
     let datapath = "/home/rxz/dev/sb-actix-lib/sample-data";
     println!("Will read from {}", datapath);
-    let mut reader = read_dir(datapath)?
+    let reader = read_dir(datapath)?
         .map(|readdir| readdir.map(|p| p.path()))
         .collect::<io::Result<Vec<PathBuf>>>()?;
 
@@ -53,7 +45,6 @@ fn main() -> io::Result<()> {
             for tx in block_parsed["transactions"].as_array_mut().unwrap().iter() {
                 let _ = process_tx(&tx["transaction"], &mut block_hm);
             }
-            // println!("{:?}", block_hm);
             block_hm
         });
         handles.push(_handle);
@@ -63,13 +54,14 @@ fn main() -> io::Result<()> {
     while handles.len() > 0 {
         let cur_thread     = handles.pop().unwrap();      // moves it into cur_thread
         let returned_block = cur_thread.join().unwrap();
-
-        global_map = global_map.into_iter().merge_join_by(returned_block, |(key_global, _), (key_local,_)| Ord::cmp(key_global, key_local))
+            global_map     = global_map.into_iter()
+        .merge_join_by(returned_block, |(key_global, _), (key_local,_)| Ord::cmp(key_global, key_local))
         .map(|kvpair|match kvpair{
-            EitherOrBoth::Both(global,local ) =>(global.0,merge_account_profiles(global.1, local.1)),
-            EitherOrBoth::Left(global) => global,
-            EitherOrBoth::Right(local) => local
-        }).collect::<BTreeMap<String,AccountProfile>>()
+            EitherOrBoth::Both (global,local) =>(global.0,merge_account_profiles(global.1, local.1)),
+            EitherOrBoth::Left (global      ) => global,
+            EitherOrBoth::Right(local       ) => local
+        })
+        .collect::<BTreeMap<String,AccountProfile>>()
     }
 
     println!("{:?}", global_map);

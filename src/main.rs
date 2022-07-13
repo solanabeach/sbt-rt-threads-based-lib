@@ -35,30 +35,34 @@ fn main() -> io::Result<()> {
 
     let mut handles: Vec<_> = vec![];
 
-    for i in 0..200 {
+    for i in 0..2 {
         let innerpaths = Arc::clone(&paths);
         let _handle = thread::spawn(move || {
             let sr = innerpaths.read().unwrap();
             let sref: &Vec<String> = sr.as_ref();
-            let firstblock = &sref[0..2000][i];
+            let firstblock = &sref[0..2][i];
             let mut reader = BufReader::new(File::open(firstblock).unwrap());
             let mut block  = String::new();
-            reader.read_to_string(&mut block);
+            let _ = reader.read_to_string(&mut block);
             let mut block_parsed: Value = serde_json::from_str(&block).unwrap();
-            let mut block_hm = HashMap::new();
+            let mut block_hm            = HashMap::new();
             for tx in block_parsed["transactions"].as_array_mut().unwrap().iter() {
-                process_tx(&tx["transaction"], &mut block_hm);
+                let _ = process_tx(&tx["transaction"], &mut block_hm);
             }
             // println!("{:?}", block_hm);
             block_hm
-
         });
         handles.push(_handle);
     }
 
     while handles.len() > 0 {
-        let cur_thread = handles.remove(0); // moves it into cur_thread
-        cur_thread.join().unwrap();
+        let cur_thread = handles.pop().unwrap(); // moves it into cur_thread
+        let returned_block = cur_thread.join().unwrap();
+
+
+
+
+
     }
     println!("Done");
     Ok(())

@@ -31,7 +31,10 @@ It is not obvious to me whether to
 - just return a vector of accountProfile structures from the thread and merge it into a global hashmap
 
 
-have to benchmark those two.
+have to benchmark those two approaches. In general we can leverage concurrency by partioning the load(here, blocks) into further pieces and moving the work associated with each piece to a thread we can, but contentious data structures will get in our way when syncronizing between these pieces. For each piece we can try to return a separate structure and have an integrating mechanism at the end. The separate structures accumulating local results introduce a memory footpring, which we might or might not want to have.
 
 
 * Refer to possible synchronization strategies: https://miro.com/app/board/uXjVOnfu7j4=/ 
+
+
+

@@ -7,27 +7,19 @@ pub fn process_instruction<'a>(
     tx_hm: &mut HashMap<String, AccountProfile>,
     ix: &'a Value,
 ) -> Result<(), DeserializationError> {
+
     let pid_ind = ix["programIdIndex"].as_u64().ok_or(DeserializationError {
         msg: "couldn't get prog index ".to_string(),
         ..Default::default()
     })?;
+
     let program = tx_accs[pid_ind as usize];
+
     let data = ix["data"].as_str().ok_or(DeserializationError {
         msg: "couldn't get ix data ".to_string(),
         ..Default::default()
     })?;
-    // .as_bytes();
 
-    // println!("program {}", program);
-    // println!("Data string: {:?}", data);
-
-    // println!("Data length: {:?}", databytes.len());
-    // println!("Data hex: {:?}",hex::encode(bs58::decode(data).into_vec().unwrap()));
-    // if databytes.len()> 1{
-    // println!("1st byte: 0x{:x}",bs58::decode(data).into_vec().unwrap()[0]);
-    // }
-    // println!("\n\n");
-    // panic!("stopped ");
     let databytes = bs58::decode(data).into_vec().unwrap();
 
     let acc_inds = ix["accounts"]

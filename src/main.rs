@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use crate::transaction_ops::{tx_extract_accdata, AccountProfile};
+use crate::transaction_ops::{process_tx, AccountProfile};
 pub mod instruction_ops;
 pub mod transaction_ops;
 
@@ -33,21 +33,24 @@ fn main() -> io::Result<()> {
     let strpaths: Vec<String> = reader.clone().iter_mut().map(|pb| pb.to_str().unwrap().to_string()).collect();
     let paths                 = Arc::new(RwLock::new(strpaths));
 
-    let mut handles: Vec<JoinHandle<()>> = vec![];
+    let mut handles: Vec<_> = vec![];
 
-    for i in 0..4 {
+    for i in 0..200 {
         let innerpaths = Arc::clone(&paths);
         let _handle = thread::spawn(move || {
             let sr = innerpaths.read().unwrap();
             let sref: &Vec<String> = sr.as_ref();
-            let firstblock = &sref[0..100][0];
+            let firstblock = &sref[0..2000][i];
             let mut reader = BufReader::new(File::open(firstblock).unwrap());
             let mut block  = String::new();
             reader.read_to_string(&mut block);
             let mut block_parsed: Value = serde_json::from_str(&block).unwrap();
+            let mut block_hm = HashMap::new();
             for tx in block_parsed["transactions"].as_array_mut().unwrap().iter() {
-                tx_extract_accdata(&tx["transaction"], &mut hmglobal);
+                process_tx(&tx["transaction"], &mut block_hm);
             }
+            // println!("{:?}", block_hm);
+            block_hm
 
         });
         handles.push(_handle);
@@ -57,6 +60,6 @@ fn main() -> io::Result<()> {
         let cur_thread = handles.remove(0); // moves it into cur_thread
         cur_thread.join().unwrap();
     }
-    println!("Hello, world!");
+    println!("Done");
     Ok(())
 }

@@ -125,12 +125,6 @@ pub fn process_tx<'tx>(
         global_hm.insert(account_list[*i].to_string(), acc_profile);
     }
 
-    // let first_sig = tx["signatures"][0].as_str().ok_or(DeserializationError {
-    //     msg: "couldn't get signatures".to_string(),
-    //     ..Default::default()
-    // })?;
-
-
     let ixs = tx["message"]["instructions"]
         .as_array()
         .ok_or(DeserializationError {

@@ -5,6 +5,8 @@ use std::{
     sync::{Arc, RwLock},
     thread::{self, JoinHandle},
 };
+
+use itertools::{Itertools, EitherOrBoth};
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 
@@ -57,30 +59,20 @@ fn main() -> io::Result<()> {
         handles.push(_handle);
     }
 
-    // while handles.len() > 0 {
-    //     let cur_thread = handles.pop().unwrap(); // moves it into cur_thread
-    //     let returned_block = cur_thread.join().unwrap();
+    let mut global_map:BTreeMap<String,AccountProfile> = BTreeMap::new();
+    while handles.len() > 0 {
+        let cur_thread     = handles.pop().unwrap();      // moves it into cur_thread
+        let returned_block = cur_thread.join().unwrap();
 
+        global_map = global_map.into_iter().merge_join_by(returned_block, |(key_global, _), (key_local,_)| Ord::cmp(key_global, key_local))
+        .map(|kvpair|match kvpair{
+            EitherOrBoth::Both(global,local ) =>(global.0,merge_account_profiles(global.1, local.1)),
+            EitherOrBoth::Left(global) => global,
+            EitherOrBoth::Right(local) => local
+        }).collect::<BTreeMap<String,AccountProfile>>()
+    }
 
-
-    // }
-
-    let mut hm1 =HashMap::new();
-    hm1.insert(2, 3);
-    hm1.insert(4, 20);
-    hm1.insert(5, 100);
-    let mut hm2 =HashMap::new();
-    hm2.insert(10, 200);
-    hm2.insert(13, 233);
-    hm2.insert(5 , 1  );
-
-    println!("hm1 {:?}", hm1);
-    println!("hm2 {:?}", hm2);
-
-    let hm3=merge_hmaps(hm1, &mut hm2);
-    println!("hm1 + hm2 {:?}", hm3);
-
-    println!("Done");
+    println!("{:?}", global_map);
     Ok(())
 }
 
@@ -114,9 +106,8 @@ fn merge_account_profiles (mut a: AccountProfile, mut b: AccountProfile)->Accoun
     }
 }
 
-pub fn merge_hmaps (mut m1 : HashMap<u8,u64>,mut m2: &mut HashMap<u8,u64>)->HashMap<u8,u64>{
+pub fn merge_hmaps (mut m1 : HashMap<u8,u64>,m2: &mut HashMap<u8,u64>)->HashMap<u8,u64>{
     m2.iter().for_each(|(k2,val2)|{
-        println!("Iterating over ({},{})", k2, val2);
         m1.entry(*k2).and_modify(|v1|{ *v1 += *val2}).or_insert(*val2);
     });
     m1

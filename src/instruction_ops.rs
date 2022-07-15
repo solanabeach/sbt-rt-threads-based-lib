@@ -33,9 +33,11 @@ pub fn process_instruction<'a>(
         .collect::<Vec<u64>>();
 
     if let Some(prog_profile) = tx_hm.get_mut(program) {
-        prog_profile.ix_mentions += 1;
-        prog_profile.is_program   = true;
-        prog_profile.num_call_to += 1;
+
+        prog_profile.ix_mentions += 1  ;
+        prog_profile.is_program  = true;
+        prog_profile.num_call_to += 1  ;
+
         if databytes.len() > 0 {
             prog_profile.arg_data.num_occurences += 1;
             prog_profile.arg_data.total_length   += databytes.len() as u64;
@@ -49,7 +51,10 @@ pub fn process_instruction<'a>(
             prog_profile.arg_data.num_occurences += 1;
             prog_profile.num_zero_len_data +=1
         }
-        prog_profile.num_input_accs_ix.push(acc_inds.len() as u8);
+
+        // prog_profile.num_input_accs_ix.push(acc_inds.len() as u8);
+        prog_profile.num_input_accs_ix.entry(acc_inds.len() as u8).and_modify(|e| *e += 1).or_insert(1);
+        // .push(acc_inds.len() as u8);
 
     } else {
         panic!("Program account not found in tx_hm. Logic error.");

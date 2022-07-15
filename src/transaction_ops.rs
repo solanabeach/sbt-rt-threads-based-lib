@@ -44,7 +44,7 @@ pub struct AccountProfile {
     // If it's a program
     pub data_first_byte  : HashMap<u8, u64>, // *likely* method number
     pub num_call_to      : u64,  
-    pub num_input_accs_ix: Vec<u8>,        
+    pub num_input_accs_ix: HashMap<u8, u64>,        
     pub arg_data         : DataFreq,         //
     pub num_zero_len_data: u64
 }
@@ -108,6 +108,8 @@ pub fn process_tx<'tx>(
         let mut acc_profile = AccountProfile {
             ..Default::default()
         };
+
+        println!("Created default acc profile :{:?}", acc_profile);
 
         acc_profile.tx_top_mentions += 1;
         if srw.contains(i) {

@@ -31,6 +31,7 @@ fn main() -> io::Result<()> {
         .iter_mut()
         .map(|pb| pb.to_str().unwrap().to_string())
         .collect();
+
     let paths = Arc::new(RwLock::new(strpaths));
 
     let mut handles: Vec<_> = vec![];
@@ -95,26 +96,14 @@ fn merge_account_profiles(mut a: AccountProfile, mut b: AccountProfile) -> Resul
         num_zero_len_data         : a.num_zero_len_data + b.num_zero_len_data,
         arg_data                  : DataFreq {
             num_occurences: a.arg_data.num_occurences + b.arg_data.num_occurences,
-            total_length: a.arg_data.total_length + b.arg_data.total_length,
+            total_length  : a.arg_data.total_length   + b.arg_data.total_length  ,
         },
 
-        is_pda    : a.is_pda || b.is_pda,
-        is_program: a.is_program || b.is_program,
+        is_pda     : a.is_pda     || b.is_pda    ,
+        is_program : a.is_program || b.is_program,
 
-        data_first_byte: (|| {
-            b.data_first_byte.iter().for_each(|(k2, v2)| {
-                a.data_first_byte
-                    .entry(*k2)
-                    .and_modify(|v1| *v1 += *v2)
-                    .or_insert(*v2);
-            });
-            a.data_first_byte
-        })(),
-
-        num_input_accs_ix: (|| {
-            a.num_input_accs_ix.append(&mut b.num_input_accs_ix);
-            a.num_input_accs_ix
-        })(),
+        data_first_byte  : merge_hmaps(a.data_first_byte, &mut b.data_first_byte),
+        num_input_accs_ix: merge_hmaps(a.num_input_accs_ix, &mut b.num_input_accs_ix)
     })
 }
 
@@ -174,7 +163,7 @@ mod tests {
             num_entered_as_signed_rw  : 50,
             num_entered_as_unsigned_r : 50,
             num_entered_as_unsigned_rw: 60,
-            num_input_accs_ix         : vec![49, 50, 2 ,3 ,5,],
+            num_input_accs_ix         :[(49,1), (50,1), (2,1), (3,1),(5,1)].into_iter().collect::<HashMap<u8,u64>>(),
             num_zero_len_data         : 70,
             tx_top_mentions           : 80
         };
@@ -200,7 +189,7 @@ mod tests {
             num_entered_as_signed_rw  : 5,
             num_entered_as_unsigned_r : 5,
             num_entered_as_unsigned_rw: 5,
-            num_input_accs_ix         : vec![90,90],
+            num_input_accs_ix         : vec![(90,2)].into_iter().collect::<HashMap<u8, u64>>(),
             num_zero_len_data         : 2,
             tx_top_mentions           : 3
         };
@@ -227,7 +216,7 @@ mod tests {
             num_entered_as_signed_rw  : 111,
             num_entered_as_unsigned_r : 111,
             num_entered_as_unsigned_rw: 111,
-            num_input_accs_ix         : vec![11,11],
+            num_input_accs_ix         : vec![(11,2)].into_iter().collect::<HashMap<u8, u64>>(),
             num_zero_len_data         : 11,
             tx_top_mentions           : 11
         };
@@ -250,11 +239,12 @@ mod tests {
 
 
         // The program should go unchagned
-        assert_eq!(global_map.get(&addr3).unwrap().arg_data         .num_occurences, 2 );
-        assert_eq!(global_map.get(&addr3).unwrap().arg_data         .total_length  , 2 );
-        assert_eq!(global_map.get(&addr3).unwrap().data_first_byte  .len()         , 4 );
-        assert_eq!(global_map.get(&addr3).unwrap().num_input_accs_ix.len()         , 2 );
-        assert_eq!(global_map.get(&addr3).unwrap().tx_top_mentions                 , 11);
+        assert_eq!( global_map.get(&addr3).unwrap().arg_data          .num_occurences   , 2  );
+        assert_eq!( global_map.get(&addr3).unwrap().arg_data          .total_length     , 2  );
+        assert_eq!( global_map.get(&addr3).unwrap().data_first_byte   .len()            , 4  );
+        assert_eq!( global_map.get(&addr3).unwrap().num_input_accs_ix.len()             , 1  );
+        assert_eq!(*global_map.get(&addr3).unwrap().num_input_accs_ix.get(&11).unwrap() , 2  );
+        assert_eq!( global_map.get(&addr3).unwrap().tx_top_mentions                     , 11 );
 
         // The two account profiles with same key should get merged
         let acc1 = global_map.get(&addr1).unwrap();

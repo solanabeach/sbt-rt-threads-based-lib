@@ -3,8 +3,8 @@ use std::{
     io::{self, BufReader, Read},
     path::PathBuf,
     sync::{Arc, RwLock},
-    thread::{self, JoinHandle}, error::Error,
-};
+    thread::{self, JoinHandle},
+    error::Error};
 
 use itertools::{EitherOrBoth, Itertools};
 use std::collections::BTreeMap;
@@ -17,10 +17,9 @@ use crate::transaction_ops::{process_tx, AccountProfile};
 pub mod instruction_ops;
 pub mod transaction_ops;
 
-
 fn main() -> io::Result<()> {
-    println!("My process id is :{}", std::process::id());
 
+    println!("My process id is :{}", std::process::id());
     let datapath = "/home/rxz/dev/sb-actix-lib/sample-data";
     println!("Will read from {}", datapath);
     let reader = read_dir(datapath)?
@@ -36,49 +35,41 @@ fn main() -> io::Result<()> {
 
     let mut handles: Vec<_> = vec![];
 
-    for i in 0..2 {
+    for i in 0..16 {
         let innerpaths = Arc::clone(&paths);
         let _handle = thread::spawn(move || {
             let sr                      = innerpaths.read().unwrap();
             let sref: &Vec<String>      = sr.as_ref();
-            let to_injest               = &sref[0..2][i];
-            println!("Opening block {}", to_injest);
-            let mut reader              = BufReader::new(File::open(to_injest).unwrap());
-            let mut block               = String::new();
-            let _                       = reader.read_to_string(&mut block);
-            let mut block_parsed: Value = serde_json::from_str(&block).unwrap();
-            let mut block_hm            = BTreeMap::new();
+            let to_injest               = &sref[i*300 ..( i+1 )*300];
+            let mut thread_map = BTreeMap::new();
+            for blockpath in to_injest{
 
-            for tx in block_parsed["transactions"].as_array_mut().unwrap().iter() {
-                let _ = process_tx(&tx["transaction"], &mut block_hm);
+                println!("Opening block {}", blockpath);
+                let mut reader              = BufReader::new(File::open(blockpath).unwrap());
+                let mut block               = String::new();
+                let _                       = reader.read_to_string(&mut block);
+                let mut block_parsed: Value = serde_json::from_str(&block).unwrap();
+                let mut block_map            = BTreeMap::new();
+                for tx in block_parsed["transactions"].as_array_mut().unwrap().iter() {
+                    let _ = process_tx(&tx["transaction"], &mut block_map);
+                }
+                thread_map =merge_btree_maps(thread_map, block_map);
             }
-            // println!("{:?}", block_hm);
-            block_hm
+            thread_map
         });
         handles.push(_handle);
     }
 
     let mut global_map: BTreeMap<String, AccountProfile> = BTreeMap::new();
     while handles.len() > 0 {
-        let cur_thread     = handles.pop().unwrap();      // moves it into cur_thread
+        let cur_thread     = handles.pop().unwrap();                        // moves it into cur_thread
         let returned_block = cur_thread.join().unwrap();
-
-        // global_map = global_map
-        //     .into_iter()
-        //     .merge_join_by(returned_block, |(key_global, _), (key_local, _)| {
-        //         Ord::cmp(key_global, key_local)
-        //     })
-        //     .map(|kvpair| match kvpair {
-        //         EitherOrBoth::Both(global, local) => {
-        //             (global.0, merge_account_profiles(global.1, local.1))
-        //         }
-        //         EitherOrBoth::Left(global) => global,
-        //         EitherOrBoth::Right(local) => local,
-        //     })
-        //     .collect::<BTreeMap<String, AccountProfile>>()
-
-        global_map = merge_btree_maps(global_map, returned_block);
+            global_map     = merge_btree_maps(global_map, returned_block);
     }
+
+
+
+    let _ = serde_json::to_writer(&File::create("global_map.json")?, &global_map);
 
     Ok(())
 }
@@ -87,17 +78,11 @@ fn main() -> io::Result<()> {
 
 #[derive(Debug)]
 pub struct LogicalError{}
-
 fn merge_account_profiles(mut a: AccountProfile, mut b: AccountProfile) -> Result<AccountProfile, LogicalError> {
     if a.is_pda != b.is_pda {
         println!("Got a problem. PDA mismatch");
         return Err(LogicalError{})
     }
-
-    // if a.is_program != b.is_program {
-    //     println!("Got a problem. Program mismatch");
-    //     return Err( LogicalError{} )
-    // }
 
     Ok(AccountProfile {
         num_entered_as_signed_rw   : a.num_entered_as_signed_rw   + b.num_entered_as_signed_rw   ,
@@ -162,20 +147,10 @@ pub fn merge_btree_maps(mut bm1: BTreeMap<String, AccountProfile>, bm2:  BTreeMa
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap, BTreeMap};
-
-    use itertools::{Itertools, EitherOrBoth};
-    use solana_sdk::blake3::Hash;
-
-    use crate::{transaction_ops::{AccountProfile, DataFreq}, merge_account_profiles, merge_btree_maps};
+    use crate::{transaction_ops::{AccountProfile, DataFreq}, merge_btree_maps};
 
     #[test]
     fn block_merging() {
-        // "4GPN2JK3Ub3ACMPnRkiKe5HRAWPf8bXNStaRNXdUeEUC",
-        // "AfEj5hyt4vAauLVQJYJiSnCmBQ2zpwcYefPnsCbqsyzV",
-        // "SysvarS1otHashes111111111111111111111111111",
-        // "SysvarC1ock11111111111111111111111111111111",
-        // "Vote111111111111111111111111111111111111111"
-
 
         let addr1 = String::from("AfEj5hyt4vAauLVQJYJiSnCmBQ2zpwcYefPnsCbqsyzV");
         let mut method_invocations_1 =  HashMap::new();
@@ -296,70 +271,32 @@ mod tests {
         merged_numixs.append( &mut vec![90,90] );
 
         // Ensure summations are correct
-        assert_eq!(acc2.is_pda                    , acc1.is_pda                    );
-        assert_eq!(acc2.is_pda                    , false                    );
+        assert_eq!(acc2.is_pda                     , acc1.is_pda                    );
+        assert_eq!(acc2.is_pda                     , false                          );
 
-        assert_eq!(acc2.is_program                , acc1.is_program                );
-        assert_eq!(acc2.is_program                , false                );
+        assert_eq!(acc2.is_program                 , acc1.is_program                );
+        assert_eq!(acc2.is_program                 , false                          );
 
-        assert_eq!(acc2.ix_mentions               , acc1.ix_mentions               );
-        assert_eq!(acc2.ix_mentions               ,  25             );
+        assert_eq!(acc2.ix_mentions                , acc1.ix_mentions               );
+        assert_eq!(acc2.ix_mentions                , 25                             );
 
-        assert_eq!(acc2.num_call_to               , acc1.num_call_to               );
-        assert_eq!(acc2.num_call_to               , 35               );
+        assert_eq!(acc2.num_call_to                , acc1.num_call_to               );
+        assert_eq!(acc2.num_call_to                , 35                             );
 
-        assert_eq!(acc2.num_entered_as_signed_r   , acc1.num_entered_as_signed_r   );
-        assert_eq!(acc2.num_entered_as_signed_r   , 45   );
+        assert_eq!(acc2.num_entered_as_signed_r    , acc1.num_entered_as_signed_r   );
+        assert_eq!(acc2.num_entered_as_signed_r    , 45                             );
 
-        assert_eq!(acc2.num_entered_as_signed_rw  , acc1.num_entered_as_signed_rw  );
-        assert_eq!(acc2.num_entered_as_signed_rw  , 55  );
+        assert_eq!(acc2.num_entered_as_signed_rw   , acc1.num_entered_as_signed_rw  );
+        assert_eq!(acc2.num_entered_as_signed_rw   , 55                             );
 
-        assert_eq!(acc2.num_entered_as_unsigned_rw, acc1.num_entered_as_unsigned_rw);
-        assert_eq!(acc2.num_entered_as_unsigned_rw, 65);
+        assert_eq!(acc2.num_entered_as_unsigned_rw , acc1.num_entered_as_unsigned_rw);
+        assert_eq!(acc2.num_entered_as_unsigned_rw , 65                             );
 
-        assert_eq!(acc2.num_entered_as_unsigned_r , acc1.num_entered_as_unsigned_r );
-        assert_eq!(acc2.num_entered_as_unsigned_r , 55);
+        assert_eq!(acc2.num_entered_as_unsigned_r  , acc1.num_entered_as_unsigned_r );
+        assert_eq!(acc2.num_entered_as_unsigned_r  , 55                             );
 
-
-        assert_eq!(acc2.num_zero_len_data         , acc1.num_zero_len_data         );
-        assert_eq!(acc2.num_zero_len_data         , 72);
-
-;
-
-
-
-        // let _ = global_map.into_iter()
-        //     .merge_join_by(block1, |(key_global, _), (key_local, _)| {
-        //         Ord::cmp(key_global, key_local)
-        //     })
-        //     .map(|kvpair| match kvpair {
-        //         EitherOrBoth::Both(global, local) => {
-        //             (global.0, merge_account_profiles(global.1, local.1))
-        //         }
-        //         EitherOrBoth::Left(global) => global,
-        //         EitherOrBoth::Right(local) => local,
-        //     })
-        //     .collect::<BTreeMap<String, AccountProfile>>();
-
-
-        // assert_eq!()
-
-
-        // global_map = global_map
-        //     .into_iter()
-        //     .merge_join_by(returned_block, |(key_global, _), (key_local, _)| {
-        //         Ord::cmp(key_global, key_local)
-        //     })
-        //     .map(|kvpair| match kvpair {
-        //         EitherOrBoth::Both(global, local) => {
-        //             (global.0, merge_account_profiles(global.1, local.1))
-        //         }
-        //         EitherOrBoth::Left(global) => global,
-        //         EitherOrBoth::Right(local) => local,
-        //     })
-        //     .collect::<BTreeMap<String, AccountProfile>>()
-
-
+        assert_eq!(acc2.num_zero_len_data          , acc1.num_zero_len_data         );
+        assert_eq!(acc2.num_zero_len_data          , 72                             );
     }
 
 

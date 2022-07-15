@@ -9,15 +9,11 @@ struct Cat {
     color: String,
 }
 
-
-
-
 pub fn insert_data(conn:&Connection)->Result<()>{
 
     let mut cat_colors = HashMap::new();
     cat_colors.insert(String::from("Blue"), vec!["Tigger", "Sammy"]);
     cat_colors.insert(String::from("Black"), vec!["Oreo", "Biscuit"]);
-
     for (color, catnames) in &cat_colors {
         conn.execute(
             "INSERT INTO cat_colors (name) values (?1)",
@@ -71,28 +67,18 @@ pub fn sqlite_tools() -> Result<()> {
             total_data_occurences              integer not null ,
             num_zero_len_data                  integer not null
          )",
-        [],
-    )?;
+        [])?;
 
-    conn.execute(
-        "create table if not exists num_input_accounts (
+    conn.execute("create table if not exists num_input_accs_ix (
             hash text primary key,
-            total_length
-         )",
-        [],
-    )?;
-    
-    conn.execute(
-        "create table if not exists data_first_byte (
+         )", [])?;
+
+    conn.execute("create table if not exists data_first_byte (
             hash text primary key,
-            total_length
-         )",
-        [],
-    )?;
+            total_length)", [])?;
 
 
     insert_data(&conn)?;
-
     Ok(())
 }
 

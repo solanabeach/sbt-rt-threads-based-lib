@@ -75,7 +75,7 @@ pub fn sqlite_tools() -> Result<()> {
 
     conn.execute("create table if not exists data_first_byte (
             hash text primary key,
-            total_length)", [])?;
+        )", [])?;
 
 
     insert_data(&conn)?;
@@ -83,8 +83,23 @@ pub fn sqlite_tools() -> Result<()> {
 }
 
 
+
+fn test_sqlite () -> Result<()> {
+    let conn = Connection::open("test1.db")?;
+
+    Ok(())
+}
 pub fn main(){
-    sqlite_tools().unwrap();
+    // sqlite_tools().unwrap();
+}
+
+
+#[cfg(test)]
+mod tests{
+
+    // #[test]
+    // pub fn create 
+
 }
 
 

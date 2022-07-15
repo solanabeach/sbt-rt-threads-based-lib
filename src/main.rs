@@ -3,26 +3,47 @@ use std::{
     io::{self, BufReader, Read},
     path::PathBuf,
     sync::{Arc, RwLock},
-    thread::{self, JoinHandle},
-    error::Error};
+    thread::{self, JoinHandle}, process::exit,
+};
 
+use clap::Parser;
+use rusqlite::version;
+use std::env::current_dir;
 use itertools::{EitherOrBoth, Itertools};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-
 use serde_json::Value;
 use transaction_ops::DataFreq;
-
 use crate::transaction_ops::{process_tx, AccountProfile};
 pub mod instruction_ops;
 pub mod transaction_ops;
 
+
+#[derive(Debug, Parser)]
+#[clap(author, version, long_about=None, about = "Prototype of a tool to extract data from a set of blocks + threading experiments")]
+pub struct Args {
+  // Path to block data (.json format)
+  #[clap(short, long)]
+  directory: String,
+
+  // Number of threads to use
+  #[clap(short, long, default_value_t=1)]
+  thread_n: usize,
+
+  #[clap(takes_value = false, short, long)]
+  verbose:bool
+}
+
+
 fn main() -> io::Result<()> {
 
-    println!("My process id is :{}", std::process::id());
-    let datapath = "/home/rxz/dev/sb-actix-lib/sample-data";
-    println!("Will read from {}", datapath);
-    let reader = read_dir(datapath)?
+    let args       = Args::parse();
+    let blocks_dir = args.directory;
+    let nthreads   = args.thread_n;
+    let verbose    = args.verbose;
+
+    if verbose{println!("Will read from {}", &blocks_dir);}
+    let reader = read_dir(blocks_dir)?
         .map(|readdir| readdir.map(|p| p.path()))
         .collect::<io::Result<Vec<PathBuf>>>()?;
 
@@ -32,20 +53,22 @@ fn main() -> io::Result<()> {
         .map(|pb| pb.to_str().unwrap().to_string())
         .collect();
 
-    let paths = Arc::new(RwLock::new(strpaths));
+    let paths  = Arc::new(RwLock::new(strpaths));
+    let nfiles = paths.read().unwrap().len();
+    
 
     let mut handles: Vec<_> = vec![];
 
-    for i in 0..16 {
+    for i in 1..nthreads {
         let innerpaths = Arc::clone(&paths);
         let _handle = thread::spawn(move || {
             let sr                      = innerpaths.read().unwrap();
             let sref: &Vec<String>      = sr.as_ref();
-            let to_injest               = &sref[i*300 ..( i+1 )*300];
+            let to_injest               = &sref[i*(nfiles/nthreads) ..( i+1 )*(nfiles/nthreads)];
             let mut thread_map = BTreeMap::new();
             for blockpath in to_injest{
-
-                println!("Opening block {}", blockpath);
+                if verbose{println!("[\tthread {}\t]: processed {}", i, blockpath);}
+                // println!("Opening block {}", blockpath);
                 let mut reader              = BufReader::new(File::open(blockpath).unwrap());
                 let mut block               = String::new();
                 let _                       = reader.read_to_string(&mut block);

@@ -12,8 +12,7 @@ serde      = "1.0.139"
 bs58       = "0.4.0"
 itertools  = "0.10.3"
 rusqlite   = "0.28.0"
-
-
+clap       = { version = "3.2", features = [ "derive" ] }
 
 [[bin]]
 name="sqlitetest"

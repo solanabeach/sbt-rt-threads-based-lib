@@ -2,15 +2,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use solana_sdk::pubkey::Pubkey;
 use std::collections::{HashMap, BTreeMap};
-use crate::instruction_ops::process_instruction;
 
-pub fn str_is_pda(acc: &&str) -> Result<bool, bs58::decode::Error> {
+use super::process_ix;
+
+fn str_is_pda(acc: &&str) -> Result<bool, bs58::decode::Error> {
     let bytes = bs58::decode(acc).into_vec()?;
     Ok(Pubkey::new(&bytes).is_on_curve())
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct SolanaMessageHeader {
+struct SolanaMessageHeader {
     pub numReadonlySignedAccounts: u8,
     pub numReadonlyUnsignedAccounts: u8,
     pub numRequiredSignatures: u8,
@@ -133,7 +134,7 @@ pub fn process_tx<'tx>(
         })?;
 
     for ix in ixs {
-        process_instruction(account_list.as_slice(), global_hm, &ix)?;
+        process_ix(account_list.as_slice(), global_hm, &ix)?;
     }
 
     Ok(())

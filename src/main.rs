@@ -5,18 +5,20 @@ use std::{
     sync::{Arc, RwLock},
     thread::{self, JoinHandle}, process::exit,
 };
+#[path ="./block_ops/mod.rs"]
+mod block_ops;
+#[path ="./databases/mod.rs"]
+mod databases;
 
+use block_ops::transaction_ops::{AccountProfile, process_tx, DataFreq};
 use clap::Parser;
-use rusqlite::version;
-use std::env::current_dir;
 use itertools::{EitherOrBoth, Itertools};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+
+
 use serde_json::Value;
-use transaction_ops::DataFreq;
-use crate::transaction_ops::{process_tx, AccountProfile};
-pub mod instruction_ops;
-pub mod transaction_ops;
+
 
 
 #[derive(Debug, Parser)]
@@ -159,7 +161,7 @@ pub fn merge_btree_maps(mut bm1: BTreeMap<String, AccountProfile>, bm2:  BTreeMa
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap, BTreeMap};
-    use crate::{transaction_ops::{AccountProfile, DataFreq}, merge_btree_maps};
+    use crate::{block_ops::{*}, merge_btree_maps};
 
     #[test]
     fn block_merging() {
@@ -256,7 +258,7 @@ mod tests {
         block2.insert(addr2.clone(), acc2);
         block3.insert(addr3.clone(), acc3);
 
-        global_map = merge_btree_maps(global_map, block1);
+        global_map =  merge_btree_maps(global_map, block1);
         global_map = merge_btree_maps(global_map, block2);
         global_map = merge_btree_maps(global_map, block3);
 

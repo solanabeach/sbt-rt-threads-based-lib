@@ -39,6 +39,9 @@ pub struct Args {
 
 fn main() -> io::Result<()> {
 
+
+
+
     let args       = Args::parse();
     let blocks_dir = args.directory;
     let nthreads   = args.thread_n;

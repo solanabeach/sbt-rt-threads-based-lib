@@ -19,7 +19,7 @@ struct SolanaMessageHeader {
 
 #[derive(Default, Debug, Serialize)]
 pub struct DataFreq {
-    pub total_length: u64,
+    pub total_length  : u64,
     pub num_occurences: u64,
 }
 

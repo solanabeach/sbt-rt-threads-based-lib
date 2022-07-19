@@ -17,7 +17,6 @@ pub fn insert_account(conn:&Connection, address_hash:&str, accprofile: &AccountP
             is_program                ,
             total_data_length         ,
             total_data_occurences     ,
-            is_pdia,
             num_zero_len_data        
         ) values (
             :address                   ,
@@ -32,7 +31,6 @@ pub fn insert_account(conn:&Connection, address_hash:&str, accprofile: &AccountP
             :is_program                ,
             :total_data_length         ,
             :total_data_occurences     ,
-            :is_pdia,
             :num_zero_len_data        
         )",
         named_params! {
@@ -49,7 +47,6 @@ pub fn insert_account(conn:&Connection, address_hash:&str, accprofile: &AccountP
             ":total_data_length"          :accprofile.arg_data.total_length     ,
             ":total_data_occurences"      :accprofile.arg_data.num_occurences   ,
             ":num_zero_len_data"          :accprofile.num_zero_len_data         ,
-            ":is_pdia"          :accprofile.num_zero_len_data         ,
         },
     )?;
     println!("Inserted account {}", address_hash);
@@ -86,27 +83,83 @@ pub fn enter_first_byte_data(conn:&Connection, address_hash: &str,accprofile:&Ac
 
 }
 
+pub fn upsert_acc(conn:&Connection, addr:&str,acc:&AccountProfile)->Result<()>{
+    conn.execute(
+        "INSERT INTO accounts (
+            address                   ,
+            num_entered_as_signed_rw  ,
+            num_entered_as_signed_r   ,
+            num_entered_as_unsigned_rw,
+            num_entered_as_unsigned_r ,
+            tx_top_mentions           ,
+            ix_mentions               ,
+            is_pda                    ,
+            num_call_to               ,
+            is_program                ,
+            total_data_length         ,
+            total_data_occurences     ,
+            num_zero_len_data        
+        ) values (
+            :address                   ,
+            :num_entered_as_signed_rw  ,
+            :num_entered_as_signed_r   ,
+            :num_entered_as_unsigned_rw,
+            :num_entered_as_unsigned_r ,
+            :tx_top_mentions           ,
+            :ix_mentions               ,
+            :is_pda                    ,
+            :num_call_to               ,
+            :is_program                ,
+            :total_data_length         ,
+            :total_data_occurences     ,
+            :num_zero_len_data)
+        ON CONFLICT (address) DO UPDATE SET
+            num_entered_as_signed_rw  =   num_entered_as_signed_rw   + :num_entered_as_signed_rw  ,
+            num_entered_as_signed_r   =   num_entered_as_signed_r    + :num_entered_as_signed_r   ,
+            num_entered_as_unsigned_rw=   num_entered_as_unsigned_rw + :num_entered_as_unsigned_rw,
+            num_entered_as_unsigned_r =   num_entered_as_unsigned_r  + :num_entered_as_unsigned_r ,
+            tx_top_mentions           =   tx_top_mentions            + :tx_top_mentions           ,
+            ix_mentions               =   ix_mentions                + :ix_mentions               ,
+            is_pda                    =   is_pda                     + :is_pda                    ,
+            num_call_to               =   num_call_to                + :num_call_to               ,
+            is_program                =   is_program                 + :is_program                ,
+            total_data_length         =   total_data_length          + :total_data_length         ,
+            total_data_occurences     =   total_data_occurences      + :total_data_occurences     ,
+            num_zero_len_data         =   num_zero_len_data          + :num_zero_len_data         
+        ",
+        named_params! {
+            ":address"                    :addr,
+            ":num_entered_as_signed_rw"   :acc.num_entered_as_signed_rw  ,
+            ":num_entered_as_signed_r"    :acc.num_entered_as_signed_r   ,
+            ":num_entered_as_unsigned_rw" :acc.num_entered_as_unsigned_rw,
+            ":num_entered_as_unsigned_r"  :acc.num_entered_as_unsigned_r ,
+            ":tx_top_mentions"            :acc.tx_top_mentions           ,
+            ":ix_mentions"                :acc.ix_mentions               ,
+            ":is_pda"                     :acc.is_pda                    ,
+            ":num_call_to"                :acc.num_call_to               ,
+            ":is_program"                 :acc.is_program                ,
+            ":total_data_length"          :acc.arg_data.total_length     ,
+            ":total_data_occurences"      :acc.arg_data.num_occurences   ,
+            ":num_zero_len_data"          :acc.num_zero_len_data         ,
+        },
+    )?;
+    Ok(())
+}
 
 
 
 pub fn add_column_if_not_exists(conn:&Connection, table:&str, colname: &str)->Result<(), rusqlite::Error>{
-
-    // let mut stmt = conn.prepare("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('accounts') WHERE name='ix_mentions'")?;
-    // let mut stmt = conn.prepare(&format!("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('{}') WHERE name='{}'", "accounts", "ix_mentions"))?;
     let mut stmt = conn.prepare(&format!("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('{}') WHERE name='{}'", table, colname))?;
-
-    // let mut stmt = conn.prepare("SELECT * from accounts;")?;
-    let exists = {
-        let mut rows     = stmt.query([]).unwrap();
+    let exists   = {
+        let mut rows = stmt.query([]).unwrap();
         let x = rows.next().map(|r| r.unwrap().get_ref_unwrap(0).as_i64()).unwrap().unwrap();
-        println!("{:?}", x);
         x > 0
     };
-
-    println!("Col |{}| in the table [{}] :{}", colname, table, exists);
+    println!("Column \"{}\" {} in the table \"{}\".", colname,{if exists{"EXISTS"}else {"DNE"}}, table);
     if !exists {
-        let _ = conn.prepare(&format!("ALTER TABLE {} ADD {} int DEFAULT 0;", table, colname))?;
-        println!("Adding column {} to table {}", colname, table);
+        let mut prepared = conn.prepare(&format!("ALTER TABLE {} ADD column {} int DEFAULT 0;", table, colname))?;
+        let _ = prepared.execute([])?;
+        println!("Appended colum \"{}\" in to tablel \"{}\"", colname, table);
     }
 
 

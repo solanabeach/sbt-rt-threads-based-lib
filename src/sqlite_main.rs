@@ -27,7 +27,7 @@ pub fn main(){
         num_entered_as_signed_rw  : 5,
         num_entered_as_unsigned_r : 5,
         num_entered_as_unsigned_rw: 5,
-        num_input_accs_ix         : vec![(90,2)].into_iter().collect::<HashMap<u8, u64>>(),
+        num_input_accs_ix         : vec![(90,2)].into_iter().collect:: <HashMap<u8, u64>>(),
         num_zero_len_data         : 2,
         tx_top_mentions           : 3
     };
@@ -35,7 +35,7 @@ pub fn main(){
 
     // insert_account(&conn, &addr2, &acc2).unwrap();
     // enter_first_byte_data(&conn, &addr2, &acc2).unwrap();
-    add_column_if_not_exists(&conn, "accounts", "is_pdia");
+    // add_column_if_not_exists(&conn, "accounts", "is_pda");
 
 
     println!("Ran main");

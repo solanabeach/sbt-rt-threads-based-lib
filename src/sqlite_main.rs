@@ -11,7 +11,7 @@ pub fn main(){
     use block_ops::{*};
     let conn = create_tables().unwrap();
 
-    let addr2                    = String::from("AfEj5hyt4vAauLVQJYJiSnCmBQ2zpwcYefPnsCbqsyzV");
+    let addr2                    = String::from("dafEj5hyt4vAauLVQJYJiSnCmBQ2zpwcYefPnsCbqsyzV");
     let method_invocations_2 =[(49u8, 111), (0u8, 20), (1u8, 25),(8u8, 100)].into_iter().collect::<HashMap<u8,u64>>(); 
     let acc2 = AccountProfile{
         arg_data: DataFreq{
@@ -33,8 +33,9 @@ pub fn main(){
     };
 
 
-    insert_account(&conn, &addr2, &acc2).unwrap();
-    enter_first_byte_data(&conn, &addr2, &acc2).unwrap();
+    // insert_account(&conn, &addr2, &acc2).unwrap();
+    // enter_first_byte_data(&conn, &addr2, &acc2).unwrap();
+    add_column_if_not_exists(&conn, "accounts", "is_pdia");
 
 
     println!("Ran main");

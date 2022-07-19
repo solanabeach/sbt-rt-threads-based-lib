@@ -1,5 +1,5 @@
 use clap::Parser;
-use rusqlite::{Connection, Result, named_params, ToSql};
+use rusqlite::{Connection, Result, named_params, ToSql, params, OptionalExtension};
 use crate::block_ops::{*};
 
 pub fn insert_account(conn:&Connection, address_hash:&str, accprofile: &AccountProfile)->Result<()>{
@@ -17,6 +17,7 @@ pub fn insert_account(conn:&Connection, address_hash:&str, accprofile: &AccountP
             is_program                ,
             total_data_length         ,
             total_data_occurences     ,
+            is_pdia,
             num_zero_len_data        
         ) values (
             :address                   ,
@@ -31,6 +32,7 @@ pub fn insert_account(conn:&Connection, address_hash:&str, accprofile: &AccountP
             :is_program                ,
             :total_data_length         ,
             :total_data_occurences     ,
+            :is_pdia,
             :num_zero_len_data        
         )",
         named_params! {
@@ -47,6 +49,7 @@ pub fn insert_account(conn:&Connection, address_hash:&str, accprofile: &AccountP
             ":total_data_length"          :accprofile.arg_data.total_length     ,
             ":total_data_occurences"      :accprofile.arg_data.num_occurences   ,
             ":num_zero_len_data"          :accprofile.num_zero_len_data         ,
+            ":is_pdia"          :accprofile.num_zero_len_data         ,
         },
     )?;
     println!("Inserted account {}", address_hash);
@@ -86,7 +89,56 @@ pub fn enter_first_byte_data(conn:&Connection, address_hash: &str,accprofile:&Ac
 
 
 
-pub fn add_column_if_not_exists(conn:&Connection,colname: u8, table:&str){
+pub fn add_column_if_not_exists(conn:&Connection, table:&str, colname: &str)->Result<(), rusqlite::Error>{
+
+    // let mut stmt = conn.prepare("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('accounts') WHERE name='ix_mentions'")?;
+    // let mut stmt = conn.prepare(&format!("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('{}') WHERE name='{}'", "accounts", "ix_mentions"))?;
+    let mut stmt = conn.prepare(&format!("SELECT COUNT(*) AS CNTREC FROM pragma_table_info('{}') WHERE name='{}'", table, colname))?;
+
+    // let mut stmt = conn.prepare("SELECT * from accounts;")?;
+    let exists = {
+        let mut rows     = stmt.query([]).unwrap();
+        let x = rows.next().map(|r| r.unwrap().get_ref_unwrap(0).as_i64()).unwrap().unwrap();
+        println!("{:?}", x);
+        x > 0
+    };
+
+    println!("Col |{}| in the table [{}] :{}", colname, table, exists);
+    if !exists {
+        let _ = conn.prepare(&format!("ALTER TABLE {} ADD {} int DEFAULT 0;", table, colname))?;
+        println!("Adding column {} to table {}", colname, table);
+    }
+
+
+    // let mut rows     = stmt.query(named_params! {
+    //     ":tablename": "accounts",
+    //     ":colname"  : "ix_mentions",
+    // }).unwrap();
+
+    // let y = rows   
+    // .mapped(|r| Ok({let x:Result<_>  = r.get_ref(0);println!("{:?}", x);
+    // }));
+
+
+    // let y = rows   
+    // .mapped(|r| Ok({let x:Result<_>  = r.get_ref(0);println!("{:?}", x);
+    // }));
+
+
+    // for i in y{
+    //     println!("{:?}", i);
+    // }
+
+
+
+
+    // let names = Vec::new();
+    // while let Some(row) = rows.next()?{
+    //     names.push(row.get(0)?);
+    // }
+    // rows.next().unwrap().get_checked(0)?;
+    
+    Ok(())
 
 }
 
@@ -110,14 +162,20 @@ pub fn create_tables() -> Result<Connection> {
          )",
         [])?;
 
+
+
+
     conn.execute("create table if not exists data_first_byte (
-            address    text    primary key,
-            first_byte integer not     null,
-            num_calls  integer not     null
+            address    text    primary key
         )", [])?;
+    // conn.execute("create table if not exists data_first_byte (
+    //         address    text    primary key,
+    //         // first_byte integer not     null,
+    //         // num_calls  integer not     null
+    //     )", [])?;
 
     // conn.execute("create table if not exists num_input_accs_ix (
-    //         address text primary key,
+    //         address text primary key, 1
     //         FOREIGN KEY(address) REFERENCES accounts(address)
     //      )", [])?;
 
